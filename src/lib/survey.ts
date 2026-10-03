@@ -1,28 +1,34 @@
+import { AppWindow, Bot, Files, Lightbulb, Repeat, Rocket, Sparkles, type LucideIcon } from "lucide-react";
+
 export const Q1_OPTIONS = [
-  { id: "none", label: "Практически не использую" },
-  { id: "chat", label: "Иногда общаюсь с ИИ: вопросы, тексты, идеи" },
-  { id: "work", label: "Регулярно использую ИИ в рабочих задачах" },
-  { id: "files", label: "Уже работаю с файлами, данными, проектами и дополнительными возможностями" },
-  { id: "agents", label: "Уже пробовал(а) приложения, автоматизации или агентов" },
+  { id: "none", label: "Практически не использую", hint: undefined },
+  { id: "chat", label: "Иногда общаюсь с ИИ", hint: "Вопросы, тексты, идеи" },
+  { id: "work", label: "Регулярно использую ИИ в рабочих задачах", hint: undefined },
+  { id: "files", label: "Уже работаю с файлами, данными, проектами и дополнительными возможностями", hint: undefined },
+  { id: "agents", label: "Уже пробовал(а) приложения, автоматизации или агентов", hint: undefined },
 ] as const;
 
-export const Q1_SHORT: Record<string, string> = {
-  none: "Почти не использую",
-  chat: "Иногда общаюсь",
-  work: "Регулярно в работе",
-  files: "Файлы и данные",
-  agents: "Приложения и агенты",
-};
+export const INTERESTS: { id: string; title: string; Icon: LucideIcon }[] = [
+  { id: "apps", title: "Создавать собственные приложения и цифровые инструменты", Icon: AppWindow },
+  { id: "delegate", title: "Поручать ИИ большие задачи целиком", Icon: Rocket },
+  { id: "files", title: "Работать с файлами и рабочими материалами", Icon: Files },
+  { id: "automate", title: "Автоматизировать повторяющиеся процессы", Icon: Repeat },
+  { id: "assistants", title: "Создавать собственных ИИ-ассистентов", Icon: Bot },
+  { id: "analysis", title: "Использовать ИИ для анализа, идей и принятия решений", Icon: Lightbulb },
+  { id: "unsure", title: "Пока не знаю — хочу сначала увидеть возможности", Icon: Sparkles },
+];
 
-export const DIRECTIONS = [
-  { id: "think", emoji: "💬", title: "Общаться и думать вместе с ИИ", desc: "Обсуждать, анализировать, искать идеи и решения." },
-  { id: "create", emoji: "✨", title: "Создавать с помощью ИИ что-то новое", desc: "Собственные цифровые инструменты и приложения." },
-  { id: "access", emoji: "🗂️", title: "Дать ИИ доступ к моим рабочим материалам", desc: "Чтобы он мог работать с файлами, данными и проектами." },
-  { id: "automate", emoji: "🔄", title: "Передать ИИ повторяющийся процесс", desc: "Чтобы последовательность действий выполнялась автоматически." },
-  { id: "delegate", emoji: "⚡", title: "Поручить ИИ целую задачу", desc: "Поставить цель и получить готовый результат." },
-  { id: "assistant", emoji: "🤖", title: "Иметь собственного ИИ-ассистента", desc: "Который может пользоваться инструментами и выполнять поручения." },
-] as const;
+export const TASK_EXAMPLES = [
+  "Подготовка презентаций, поиск информации о конкурентах и отчёты после встреч",
+  "Отвечать клиентам, вести CRM и не забывать делать follow-up",
+  "Быстро делать баннеры и материалы для соцсетей",
+  "Разбирать большие документы и находить в них нужную информацию",
+];
 
-export const UNSURE = { id: "unsure", emoji: "🤷", title: "Пока не понимаю", desc: "Сначала хочу увидеть, что вообще возможно." } as const;
+/**
+ * Shape for future AI clustering of free-text tasks.
+ * Clusters are generated per group from real answers — no fixed categories.
+ */
+export type TaskCluster = { title: string; count: number; examples: string[] };
 
 export type Phase = "before" | "after";

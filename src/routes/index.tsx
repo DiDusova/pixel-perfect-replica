@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { DIRECTIONS, Q1_OPTIONS, UNSURE, type Phase } from "@/lib/survey";
 
-type Search = { s?: string; phase?: Phase };
+type Search = { s?: string | undefined; phase?: Phase | undefined };
 
 export const Route = createFileRoute("/")({
   validateSearch: (s: Record<string, unknown>): Search => ({

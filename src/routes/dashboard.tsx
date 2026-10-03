@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { DIRECTIONS, Q1_OPTIONS, Q1_SHORT, UNSURE, type Phase } from "@/lib/survey";
 
-type Search = { s?: string; phase?: Phase };
+type Search = { s?: string | undefined; phase?: Phase | undefined };
 type Row = { id: string; q1: string; q2: string; q3: string[]; task: string | null };
 
 export const Route = createFileRoute("/dashboard")({

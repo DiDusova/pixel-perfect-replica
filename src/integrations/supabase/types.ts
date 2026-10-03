@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          interests: string[]
           phase: string
           q1: string
           q2: string
@@ -28,9 +29,10 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          interests?: string[]
           phase?: string
           q1: string
-          q2: string
+          q2?: string
           q3?: string[]
           session_id: string
           task?: string | null
@@ -38,6 +40,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          interests?: string[]
           phase?: string
           q1?: string
           q2?: string

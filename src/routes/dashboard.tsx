@@ -4,11 +4,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { Copy, Download, FileDown, Link2, Maximize2, Minimize2, QrCode, X } from "lucide-react";
 import QRCode from "qrcode";
 import { supabase } from "@/integrations/supabase/client";
-import { INTERESTS, Q1_OPTIONS, type Phase } from "@/lib/survey";
+import { ATTITUDES, INTERESTS, LEVELS, SURVEY_VERSION, type Phase } from "@/lib/survey";
 import { clusterTasks, type Cluster } from "@/lib/clusters.functions";
 
 type Search = { s?: string | undefined; phase?: Phase | undefined };
-type Row = { id: string; session_id: string; created_at: string; q1: string; interests: string[]; task: string | null };
+type Row = { id: string; session_id: string; created_at: string; level: string | null; attitude: string | null; interests: string[]; task: string | null };
 
 export const Route = createFileRoute("/dashboard")({
   validateSearch: (s: Record<string, unknown>): Search => ({
@@ -42,9 +42,10 @@ function Dashboard() {
       const load = async () => {
         const { data } = await supabase
           .from("responses")
-          .select("id,session_id,created_at,q1:current_ai_usage,interests:learning_interests,task:work_tasks")
+          .select("id,session_id,created_at,level:interaction_level,attitude:ai_attitude,interests:learning_interests,task:work_tasks")
           .eq("session_id", sess.id)
           .eq("phase", phase)
+          .eq("survey_version", SURVEY_VERSION)
           .order("created_at", { ascending: false });
         setRows((data as Row[]) ?? []);
       };
@@ -59,8 +60,11 @@ function Dashboard() {
 
   const total = rows.length;
   const pct = (n: number) => (total ? Math.round((n / total) * 100) : 0);
-  const q1 = Q1_OPTIONS.map((o) => ({ ...o, n: rows.filter((r) => r.q1 === o.id).length }));
-  const interests = INTERESTS.map((i) => ({ ...i, n: rows.filter((r) => r.interests?.includes(i.id)).length }));
+  const levels = LEVELS.map((o) => ({ ...o, n: rows.filter((r) => r.level === o.id).length }));
+  const maxLevel = Math.max(1, ...levels.map((l) => l.n));
+  const attitudes = ATTITUDES.map((o) => ({ ...o, n: rows.filter((r) => r.attitude === o.id).length }));
+  const maxAtt = Math.max(1, ...attitudes.map((a) => a.n));
+  const interests = INTERESTS.map((i) => ({ ...i, n: rows.filter((r) => r.interests?.includes(i.id)).length })).sort((a, b) => b.n - a.n);
   const tasks = rows.filter((r) => r.task).map((r) => r.task as string);
   const tasksKey = tasks.join("\u0001");
 
@@ -176,24 +180,55 @@ function Dashboard() {
       {total === 0 && <p className="mt-16 text-center text-2xl text-muted-foreground">Ждём первые ответы…</p>}
 
       <section className="mt-14">
-        <h2 className="text-3xl font-semibold">Как мы сейчас используем ИИ</h2>
-        <div className="mt-6 space-y-4">
-          {q1.map((o) => (
-            <div key={o.id} className="grid grid-cols-[minmax(0,22rem)_1fr_auto] items-center gap-6">
-              <span className="text-xl font-semibold leading-tight">{o.label}</span>
-              <div className="h-10 overflow-hidden rounded-full bg-secondary">
-                <div className="h-full rounded-full bg-primary transition-all duration-700" style={{ width: `${pct(o.n)}%` }} />
+        <h2 className="text-3xl font-semibold">Где мы сейчас</h2>
+        <p className="mt-2 text-xl text-muted-foreground">Как участники взаимодействуют с ИИ</p>
+        <div className="relative mt-10 grid grid-cols-5 items-end gap-4">
+          <span aria-hidden className="absolute inset-x-[10%] bottom-[4.5rem] h-1.5 rounded-full bg-border" />
+          {levels.map((l, i) => {
+            const d = 3 + (l.n / maxLevel) * 6; // rem
+            return (
+              <div key={l.id} className="relative flex flex-col items-center text-center" title={`${pct(l.n)}%`}>
+                <span className="mb-3 font-display text-5xl font-bold tabular-nums">{l.n}</span>
+                <div className="flex h-36 items-end">
+                  <span className="rounded-full bg-primary transition-all duration-700"
+                    style={{ width: `${d}rem`, height: `${d}rem`, opacity: l.n ? 0.35 + 0.65 * (l.n / maxLevel) : 0.12 }} />
+                </div>
+                <span className="mt-3 flex h-8 w-8 items-center justify-center rounded-full bg-foreground font-display text-sm font-bold text-background">{i + 1}</span>
+                <span className="mt-2 text-xl font-semibold leading-tight">{l.short}</span>
               </div>
-              <span className="w-40 text-right font-display text-3xl font-bold tabular-nums">
-                {o.n} <span className="text-xl text-muted-foreground">· {pct(o.n)}%</span>
-              </span>
-            </div>
-          ))}
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="mt-16 rounded-[2rem] bg-secondary p-8">
+        <h2 className="text-3xl font-semibold">Как мы относимся к ИИ</h2>
+        <div className="mt-8 flex items-center gap-6">
+          <span className="w-32 shrink-0 text-xl font-semibold text-muted-foreground">Не вижу смысла</span>
+          <div className="relative flex flex-1 items-center justify-between">
+            <span aria-hidden className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-gradient-to-r from-border via-accent to-primary" />
+            {attitudes.map((a) => {
+              const d = 3.5 + (a.n / maxAtt) * 6;
+              return (
+                <div key={a.id} className="relative z-10 flex w-40 flex-col items-center" title={`${pct(a.n)}%`}>
+                  <div className="flex h-40 items-center">
+                    <span className="flex items-center justify-center rounded-full border-4 border-card bg-highlight shadow-md transition-all duration-700"
+                      style={{ width: `${d}rem`, height: `${d}rem`, opacity: a.n ? 1 : 0.4 }}>
+                      <span className="font-display text-3xl font-bold tabular-nums">{a.n}</span>
+                    </span>
+                  </div>
+                  <span className="text-3xl">{a.emoji}</span>
+                  <span className="mt-1 text-center text-lg font-semibold leading-tight">{a.short}</span>
+                </div>
+              );
+            })}
+          </div>
+          <span className="w-24 shrink-0 text-right text-xl font-semibold text-muted-foreground">Обожаю</span>
         </div>
       </section>
 
       <section className="mt-16">
-        <h2 className="text-3xl font-semibold">Чему мы хотим научиться</h2>
+        <h2 className="text-3xl font-semibold">Куда мы хотим двигаться</h2>
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {interests.map(({ id, title, Icon, n }) => (
             <div key={id} className="rounded-3xl border-2 border-border bg-card p-6">
@@ -204,7 +239,7 @@ function Dashboard() {
                 <span className="font-display text-5xl font-bold tabular-nums">{pct(n)}%</span>
               </div>
               <div className="mt-5 text-xl font-bold leading-snug">{title}</div>
-              <div className="mt-1 text-lg text-muted-foreground">{n} выбр.</div>
+              <div className="mt-1 text-lg text-muted-foreground">{n} {people(n)}</div>
             </div>
           ))}
         </div>

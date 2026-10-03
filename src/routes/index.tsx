@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { INTERESTS, Q1_OPTIONS, TASK_EXAMPLES, type Phase } from "@/lib/survey";
+import { ATTITUDES, INTERESTS, LEVELS, SURVEY_VERSION, TASK_EXAMPLES, type Phase } from "@/lib/survey";
 
 type Search = { s?: string | undefined; phase?: Phase | undefined };
 
@@ -24,11 +24,14 @@ export const Route = createFileRoute("/")({
   component: Survey,
 });
 
+const STEPS = 4;
+
 function Survey() {
   const { s = "demo", phase = "before" } = Route.useSearch();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
-  const [q1, setQ1] = useState<string | null>(null);
+  const [level, setLevel] = useState<string | null>(null);
+  const [attitude, setAttitude] = useState<string | null>(null);
   const [interests, setInterests] = useState<string[]>([]);
   const [task, setTask] = useState("");
   const [sending, setSending] = useState(false);
@@ -51,12 +54,20 @@ function Survey() {
     });
 
   const submit = async () => {
-    if (!sessionId || !q1) return;
+    if (!sessionId || !level || !attitude) return;
     setSending(true);
     setError(null);
     const { data, error } = await supabase
       .from("responses")
-      .insert({ session_id: sessionId, phase, current_ai_usage: q1, learning_interests: interests, work_tasks: task.trim() || null })
+      .insert({
+        session_id: sessionId,
+        phase,
+        survey_version: SURVEY_VERSION, // always explicit; DEFAULT 1 exists only for legacy rows
+        interaction_level: level,
+        ai_attitude: attitude,
+        learning_interests: interests,
+        work_tasks: task.trim() || null,
+      })
       .select("id")
       .single();
     if (error || !data?.id) {
@@ -73,26 +84,26 @@ function Survey() {
 
   return (
     <Shell>
-      {step > 0 && step < 4 && (
+      {step > 0 && (
         <div className="mb-8 flex items-center gap-4">
           <button onClick={() => setStep(step - 1)} className="rounded-full px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-secondary">
             ← Назад
           </button>
           <div className="flex flex-1 gap-1.5">
-            {[1, 2, 3].map((i) => (
+            {Array.from({ length: STEPS }, (_, k) => k + 1).map((i) => (
               <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${i <= step ? "bg-primary" : "bg-border"}`} />
             ))}
           </div>
-          <span className="text-sm font-semibold tabular-nums text-muted-foreground">{step} из 3</span>
+          <span className="text-sm font-semibold tabular-nums text-muted-foreground">{step} из {STEPS}</span>
         </div>
       )}
 
       {step === 0 && (
         <div key="s0" className="animate-rise flex flex-1 flex-col justify-center">
-          <span className="mb-6 inline-flex w-fit items-center gap-2 rounded-full bg-highlight px-3 py-1 text-sm font-semibold">⏱ меньше минуты</span>
+          <span className="mb-6 inline-flex w-fit items-center gap-2 rounded-full bg-highlight px-3 py-1 text-sm font-semibold">⏱ около минуты</span>
           <h1 className="text-3xl font-semibold leading-tight sm:text-5xl">Что вам сейчас интересно в работе с ИИ?</h1>
           <p className="mt-5 text-lg text-muted-foreground">
-            Короткий опрос займёт меньше минуты. Здесь нет правильных ответов — интересно увидеть, как группа сейчас представляет возможности ИИ.
+            Четыре коротких вопроса. Здесь нет правильных ответов — интересно увидеть, как группа сейчас представляет возможности ИИ.
           </p>
           <PrimaryButton className="mt-10" onClick={() => setStep(1)}>Начать</PrimaryButton>
         </div>
@@ -100,26 +111,49 @@ function Survey() {
 
       {step === 1 && (
         <div key="s1" className="animate-rise">
-          <h2 className="text-2xl font-semibold leading-snug sm:text-3xl">Как вы сейчас в основном используете ИИ?</h2>
-          <div className="mt-6 space-y-3">
-            {Q1_OPTIONS.map((o) => (
-              <button key={o.id} data-selected={q1 === o.id} onClick={() => setQ1(o.id)} className="choice-card items-center gap-4 p-5">
-                <Radio on={q1 === o.id} />
-                <span>
-                  <span className="block text-base font-medium">{o.label}</span>
-                  {o.hint && <span className="block text-sm text-muted-foreground">{o.hint}</span>}
-                </span>
-              </button>
+          <h2 className="text-2xl font-semibold leading-snug sm:text-3xl">Как вы сейчас взаимодействуете с ИИ?</h2>
+          <p className="mt-2 text-muted-foreground">Выберите вариант, который лучше всего описывает ваш текущий способ работы.</p>
+          <ol className="relative mt-6 space-y-3">
+            <span aria-hidden className="absolute bottom-6 left-[1.85rem] top-6 w-0.5 bg-border" />
+            {LEVELS.map((o, i) => (
+              <li key={o.id}>
+                <button data-selected={level === o.id} onClick={() => setLevel(o.id)} className="choice-card relative items-start gap-4 p-4">
+                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-display text-sm font-bold transition-colors ${level === o.id ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{i + 1}</span>
+                  <span>
+                    <span className="block text-base font-bold">{o.title}</span>
+                    <span className="mt-0.5 block text-sm text-muted-foreground">{o.desc}</span>
+                  </span>
+                </button>
+              </li>
             ))}
-          </div>
-          <PrimaryButton className="mt-8" disabled={!q1} onClick={() => setStep(2)}>Дальше</PrimaryButton>
+          </ol>
+          <PrimaryButton className="mt-8" disabled={!level} onClick={() => setStep(2)}>Дальше</PrimaryButton>
         </div>
       )}
 
       {step === 2 && (
         <div key="s2" className="animate-rise">
+          <h2 className="text-2xl font-semibold leading-snug sm:text-3xl">А как вы сейчас относитесь к ИИ?</h2>
+          <p className="mt-2 text-muted-foreground">Выберите вариант, который вам ближе.</p>
+          <div className="mt-6 space-y-3">
+            {ATTITUDES.map((o) => (
+              <button key={o.id} data-selected={attitude === o.id} onClick={() => setAttitude(o.id)} className="choice-card items-start gap-4 p-4">
+                <span className="text-3xl leading-none">{o.emoji}</span>
+                <span>
+                  <span className="block text-base font-bold">«{o.title}»</span>
+                  <span className="mt-0.5 block text-sm text-muted-foreground">{o.desc}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+          <PrimaryButton className="mt-8" disabled={!attitude} onClick={() => setStep(3)}>Дальше</PrimaryButton>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div key="s3" className="animate-rise">
           <h2 className="text-2xl font-semibold leading-snug sm:text-3xl">Что вам хотелось бы научиться создавать или делать с помощью ИИ?</h2>
-          <p className="mt-2 text-muted-foreground">Выберите все направления, которые вам интересны.</p>
+          <p className="mt-2 text-muted-foreground">Можно выбрать несколько направлений.</p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             {INTERESTS.map(({ id, title, Icon }) => {
               const on = interests.includes(id);
@@ -136,12 +170,12 @@ function Survey() {
               );
             })}
           </div>
-          <PrimaryButton className="mt-8" disabled={interests.length === 0} onClick={() => setStep(3)}>Дальше</PrimaryButton>
+          <PrimaryButton className="mt-8" disabled={interests.length === 0} onClick={() => setStep(4)}>Дальше</PrimaryButton>
         </div>
       )}
 
-      {step === 3 && (
-        <div key="s3" className="animate-rise">
+      {step === 4 && (
+        <div key="s4" className="animate-rise">
           <h2 className="text-2xl font-semibold leading-snug sm:text-3xl">Какие рабочие задачи вам больше всего хотелось бы упростить с помощью ИИ?</h2>
           <p className="mt-2 text-muted-foreground">Напишите свободным текстом одну или несколько задач.</p>
           <div className="mt-5 rounded-2xl bg-secondary p-4 text-sm text-muted-foreground">
@@ -163,7 +197,6 @@ function Survey() {
           </PrimaryButton>
         </div>
       )}
-
     </Shell>
   );
 }
@@ -178,13 +211,5 @@ function PrimaryButton({ className = "", ...p }: React.ButtonHTMLAttributes<HTML
       {...p}
       className={`w-full rounded-full bg-primary px-8 py-5 text-lg font-bold text-primary-foreground transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-35 disabled:active:scale-100 sm:w-auto sm:min-w-56 ${className}`}
     />
-  );
-}
-
-function Radio({ on }: { on: boolean }) {
-  return (
-    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${on ? "border-primary" : "border-border"}`}>
-      {on && <span className="animate-pop h-3 w-3 rounded-full bg-primary" />}
-    </span>
   );
 }

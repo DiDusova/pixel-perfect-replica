@@ -7,8 +7,8 @@ type Search = { s?: string; phase?: Phase };
 
 export const Route = createFileRoute("/")({
   validateSearch: (s: Record<string, unknown>): Search => ({
-    s: typeof s.s === "string" ? s.s : undefined,
-    phase: s.phase === "after" ? "after" : undefined,
+    s: typeof s["s"] === "string" ? s["s"] : undefined,
+    phase: s["phase"] === "after" ? "after" : undefined,
   }),
   head: () => ({
     meta: [

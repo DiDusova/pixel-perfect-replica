@@ -8,8 +8,8 @@ type Row = { id: string; q1: string; q2: string; q3: string[]; task: string | nu
 
 export const Route = createFileRoute("/dashboard")({
   validateSearch: (s: Record<string, unknown>): Search => ({
-    s: typeof s.s === "string" ? s.s : undefined,
-    phase: s.phase === "after" ? "after" : undefined,
+    s: typeof s["s"] === "string" ? s["s"] : undefined,
+    phase: s["phase"] === "after" ? "after" : undefined,
   }),
   head: () => ({
     meta: [

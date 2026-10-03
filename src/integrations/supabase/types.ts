@@ -16,36 +16,45 @@ export type Database = {
     Tables: {
       survey_responses: {
         Row: {
+          ai_attitude: string | null
           created_at: string
           id: string
+          interaction_level: string | null
           interests: string[]
           phase: string
-          q1: string
+          q1: string | null
           q2: string
           q3: string[]
           session_id: string
+          survey_version: number
           task: string | null
         }
         Insert: {
+          ai_attitude?: string | null
           created_at?: string
           id?: string
+          interaction_level?: string | null
           interests?: string[]
           phase?: string
-          q1: string
+          q1?: string | null
           q2?: string
           q3?: string[]
           session_id: string
+          survey_version?: number
           task?: string | null
         }
         Update: {
+          ai_attitude?: string | null
           created_at?: string
           id?: string
+          interaction_level?: string | null
           interests?: string[]
           phase?: string
-          q1?: string
+          q1?: string | null
           q2?: string
           q3?: string[]
           session_id?: string
+          survey_version?: number
           task?: string | null
         }
         Relationships: [
@@ -83,30 +92,39 @@ export type Database = {
     Views: {
       responses: {
         Row: {
+          ai_attitude: string | null
           created_at: string | null
           current_ai_usage: string | null
           id: string | null
+          interaction_level: string | null
           learning_interests: string[] | null
           phase: string | null
           session_id: string | null
+          survey_version: number | null
           work_tasks: string | null
         }
         Insert: {
+          ai_attitude?: string | null
           created_at?: string | null
           current_ai_usage?: string | null
           id?: string | null
+          interaction_level?: string | null
           learning_interests?: string[] | null
           phase?: string | null
           session_id?: string | null
+          survey_version?: number | null
           work_tasks?: string | null
         }
         Update: {
+          ai_attitude?: string | null
           created_at?: string | null
           current_ai_usage?: string | null
           id?: string | null
+          interaction_level?: string | null
           learning_interests?: string[] | null
           phase?: string | null
           session_id?: string | null
+          survey_version?: number | null
           work_tasks?: string | null
         }
         Relationships: [

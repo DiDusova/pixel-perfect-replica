@@ -10,15 +10,22 @@ export const clusterTasks = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ clusters: Cluster[]; error?: string }> => {
     const tasks = data.tasks.map((t) => t.trim()).filter(Boolean);
     if (tasks.length === 0) return { clusters: [] };
-    const apiKey = process.env["LOVABLE_API_KEY"];
-    if (!apiKey) return { clusters: [], error: "AI не настроен" };
+    // Two modes (server-only): Lovable AI Gateway inside Lovable, VseGPT when self-hosted with AI_API_KEY.
+    const lovableKey = process.env["LOVABLE_API_KEY"];
+    const externalKey = process.env["AI_API_KEY"];
+    const provider = lovableKey
+      ? { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: lovableKey, model: "google/gemini-3-flash-preview" }
+      : externalKey
+        ? { url: "https://api.vsegpt.ru/v1/chat/completions", key: externalKey, model: "openai/gpt-4o-mini" }
+        : null;
+    if (!provider) return { clusters: [], error: "AI не настроен" };
 
     const numbered = tasks.map((t, i) => `[${i}] ${t}`).join("\n");
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await fetch(provider.url, {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${provider.key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: provider.model,
         messages: [
           {
             role: "system",

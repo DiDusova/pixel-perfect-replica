@@ -14,7 +14,68 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      survey_responses: {
+        Row: {
+          created_at: string
+          id: string
+          phase: string
+          q1: string
+          q2: string
+          q3: string[]
+          session_id: string
+          task: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          phase?: string
+          q1: string
+          q2: string
+          q3?: string[]
+          session_id: string
+          task?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          phase?: string
+          q1?: string
+          q2?: string
+          q3?: string[]
+          session_id?: string
+          task?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "survey_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      survey_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          slug: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          slug: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          slug?: string
+          title?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

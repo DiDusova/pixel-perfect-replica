@@ -106,9 +106,9 @@ function Dashboard() {
   };
   const downloadCsv = () => {
     const esc = (v: string) => (/[",\n;]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
-    const header = ["response_id", "session_id", "session_slug", "phase", "created_at", "current_ai_usage", "learning_interests", "work_tasks"];
+    const header = ["response_id", "session_id", "session_slug", "phase", "created_at", "survey_version", "interaction_level", "ai_attitude", "learning_interests", "work_tasks"];
     const lines = rows.map((r) =>
-      [r.id, r.session_id, s, phase, r.created_at, r.q1, (r.interests ?? []).join(";"), r.task ?? ""].map(esc).join(",")
+      [r.id, r.session_id, s, phase, r.created_at, String(SURVEY_VERSION), r.level ?? "", r.attitude ?? "", (r.interests ?? []).join(";"), r.task ?? ""].map(esc).join(",")
     );
     const csv = "\uFEFF" + [header.join(","), ...lines].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });

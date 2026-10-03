@@ -12,4 +12,7 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Self-hosting (Node/Docker): build a Node server at .output/server/index.mjs.
+  // Inside Lovable builds LOVABLE_NITRO_PRESET overrides this, so preview/publish are unchanged.
+  nitro: { preset: "node-server" },
 });

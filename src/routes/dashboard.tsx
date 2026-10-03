@@ -1,7 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { Copy, Download, Maximize2, Minimize2, QrCode, X } from "lucide-react";
+import QRCode from "qrcode";
 import { supabase } from "@/integrations/supabase/client";
-import { INTERESTS, Q1_OPTIONS, type Phase, type TaskCluster } from "@/lib/survey";
+import { INTERESTS, Q1_OPTIONS, type Phase } from "@/lib/survey";
+import { clusterTasks, type Cluster } from "@/lib/clusters.functions";
 
 type Search = { s?: string | undefined; phase?: Phase | undefined };
 type Row = { id: string; q1: string; interests: string[]; task: string | null };
@@ -58,11 +62,55 @@ function Dashboard() {
   const q1 = Q1_OPTIONS.map((o) => ({ ...o, n: rows.filter((r) => r.q1 === o.id).length }));
   const interests = INTERESTS.map((i) => ({ ...i, n: rows.filter((r) => r.interests?.includes(i.id)).length }));
   const tasks = rows.filter((r) => r.task).map((r) => r.task as string);
-  // Future: replace with AI-generated clusters for this group.
-  const clusters: TaskCluster[] | null = null;
+  const tasksKey = tasks.join("\u0001");
+
+  const runCluster = useServerFn(clusterTasks);
+  const [clusters, setClusters] = useState<Cluster[] | null>(null);
+  const [clusterError, setClusterError] = useState<string | null>(null);
+  const [clusterLoading, setClusterLoading] = useState(false);
+  useEffect(() => {
+    if (tasks.length === 0) { setClusters([]); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      setClusterLoading(true);
+      try {
+        const res = await runCluster({ data: { tasks } });
+        if (cancelled) return;
+        setClusterError(res.error ?? null);
+        if (!res.error) setClusters(res.clusters);
+      } catch {
+        if (!cancelled) setClusterError("Не удалось сгруппировать задачи");
+      } finally {
+        if (!cancelled) setClusterLoading(false);
+      }
+    }, 1500);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasksKey]);
+
+  const [qrOpen, setQrOpen] = useState(false);
+  const [present, setPresent] = useState(false);
+  useEffect(() => {
+    const onFs = () => { if (!document.fullscreenElement) setPresent(false); };
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, []);
+  useEffect(() => {
+    document.documentElement.style.fontSize = present ? "clamp(16px, 1.25vw, 26px)" : "";
+    return () => { document.documentElement.style.fontSize = ""; };
+  }, [present]);
+  const togglePresent = async () => {
+    if (!present) {
+      setPresent(true);
+      try { await document.documentElement.requestFullscreen?.(); } catch { /* iframe may block; keep enlarged layout */ }
+    } else {
+      setPresent(false);
+      if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
+    }
+  };
 
   return (
-    <main className="mx-auto min-h-screen max-w-[1600px] px-8 py-10 lg:px-16">
+    <main className={present ? "min-h-screen px-10 py-6" : "mx-auto min-h-screen max-w-[1600px] px-8 py-10 lg:px-16"}>
       <header className="flex flex-wrap items-end justify-between gap-6">
         <div>
           <p className="flex items-center gap-2 text-lg font-semibold text-muted-foreground">
@@ -70,12 +118,27 @@ function Dashboard() {
           </p>
           <h1 className="mt-2 text-4xl font-semibold lg:text-5xl">Карта возможностей ИИ — наша группа</h1>
         </div>
-        <div className="rounded-3xl bg-highlight px-8 py-4">
-          <span className="text-2xl font-semibold">Ответили: </span>
-          <span key={total} className="animate-pop inline-block font-display text-6xl font-bold tabular-nums">{total}</span>
-          <span className="text-2xl font-semibold"> чел.</span>
+        <div className="flex flex-wrap items-center gap-3">
+          {!present && (
+            <button onClick={() => setQrOpen(true)} className="flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-lg font-semibold text-primary-foreground hover:opacity-90">
+              <QrCode className="h-5 w-5" /> Показать QR-код
+            </button>
+          )}
+          <button
+            onClick={togglePresent}
+            aria-label={present ? "Выйти из полноэкранного режима" : "На весь экран"}
+            className={present ? "rounded-full p-3 text-muted-foreground opacity-40 hover:bg-secondary hover:opacity-100" : "flex items-center gap-2 rounded-full border-2 border-border px-5 py-3 text-lg font-semibold hover:bg-secondary"}
+          >
+            {present ? <Minimize2 className="h-5 w-5" /> : <><Maximize2 className="h-5 w-5" /> На весь экран</>}
+          </button>
+          <div className="rounded-3xl bg-highlight px-8 py-4">
+            <span className="text-2xl font-semibold">Ответили: </span>
+            <span key={total} className="animate-pop inline-block font-display text-6xl font-bold tabular-nums">{total}</span>
+            <span className="text-2xl font-semibold"> чел.</span>
+          </div>
         </div>
       </header>
+      {qrOpen && <QrModal slug={s} phase={phase} onClose={() => setQrOpen(false)} />}
 
       {total === 0 && <p className="mt-16 text-center text-2xl text-muted-foreground">Ждём первые ответы…</p>}
 
@@ -115,37 +178,119 @@ function Dashboard() {
       </section>
 
       <section className="mt-16">
-        <h2 className="text-3xl font-semibold">Какие рабочие задачи мы хотим упростить</h2>
-        {clusters ? <ClusterView clusters={clusters} total={tasks.length} /> : <TaskList tasks={tasks} />}
+        <h2 className="text-3xl font-semibold">Какие рабочие задачи звучат чаще всего</h2>
+        <p className="mt-2 text-xl text-muted-foreground">Карта тем, которые участники хотят упростить с помощью ИИ</p>
+        <BubbleMap clusters={clusters} loading={clusterLoading} error={clusterError} hasTasks={tasks.length > 0} />
       </section>
     </main>
   );
 }
 
-function TaskList({ tasks }: { tasks: string[] }) {
-  if (tasks.length === 0) return <p className="mt-6 text-xl text-muted-foreground">Пока нет ответов</p>;
+const BUBBLE_TONES = [
+  "bg-primary text-primary-foreground",
+  "bg-highlight text-foreground",
+  "bg-accent text-accent-foreground",
+  "bg-secondary text-secondary-foreground",
+];
+
+function BubbleMap({ clusters, loading, error, hasTasks }: { clusters: Cluster[] | null; loading: boolean; error: string | null; hasTasks: boolean }) {
+  const [open, setOpen] = useState<string | null>(null);
+  if (!hasTasks) return <p className="mt-6 text-xl text-muted-foreground">Пока нет ответов</p>;
+  if (!clusters) {
+    return <p className="mt-6 text-xl text-muted-foreground">{error ?? (loading ? "ИИ группирует ответы по смыслу…" : "Готовим карту тем…")}</p>;
+  }
+  const top = clusters.slice(0, 8);
+  const rest = clusters.slice(8);
+  const max = Math.max(1, ...top.map((c) => c.count));
+  const min = Math.min(...top.map((c) => c.count));
+  const size = (n: number) => (max === min ? 16 : 14 + ((n - min) / (max - min)) * 8); // rem
   return (
-    <div className="mt-6 columns-1 gap-4 md:columns-2 xl:columns-3">
-      {tasks.map((t, i) => (
-        <p key={i} className="mb-4 whitespace-pre-line break-inside-avoid rounded-2xl border-2 border-border bg-card p-5 text-xl leading-snug">{t}</p>
-      ))}
+    <div className="mt-8">
+      {(loading || error) && <p className="mb-4 text-base text-muted-foreground">{error ?? "Обновляем карту…"}</p>}
+      <div className="flex flex-wrap items-center justify-center gap-6">
+        {top.map((c, i) => {
+          const d = size(c.count);
+          const isOpen = open === c.name;
+          return (
+            <button
+              key={c.name}
+              onClick={() => setOpen(isOpen ? null : c.name)}
+              style={{ width: `${d}rem`, height: `${d}rem`, animationDelay: `${i * 70}ms` }}
+              className={`animate-pop flex shrink-0 flex-col items-center justify-center rounded-full border border-border/40 p-6 text-center shadow-lg transition-transform hover:scale-105 ${BUBBLE_TONES[i % BUBBLE_TONES.length]}`}
+            >
+              <span className="text-xl font-bold leading-tight">{c.name}</span>
+              <span className="mt-1 font-display text-3xl font-bold tabular-nums">{c.count}</span>
+              <span className="text-sm font-semibold opacity-80">{people(c.count)}</span>
+              <span className="mt-2 line-clamp-3 text-sm leading-snug opacity-80">
+                например: {(isOpen ? c.phrases : c.phrases.slice(0, 2)).map((p) => `«${p}»`).join(", ")}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {rest.length > 0 && (
+        <div className="mt-8 rounded-3xl border-2 border-border bg-card p-6">
+          <h3 className="text-xl font-semibold">Другие темы</h3>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {rest.map((c) => (
+              <span key={c.name} className="rounded-full bg-secondary px-4 py-2 text-base font-semibold">{c.name} · {c.count}</span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function ClusterView({ clusters, total }: { clusters: TaskCluster[]; total: number }) {
+function people(n: number) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return "человек";
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return "человека";
+  return "человек";
+}
+
+function QrModal({ slug, phase, onClose }: { slug: string; phase: Phase; onClose: () => void }) {
+  const [url, setUrl] = useState("");
+  const [svg, setSvg] = useState("");
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    const params = new URLSearchParams({ s: slug });
+    if (phase === "after") params.set("phase", "after");
+    const u = `${window.location.origin}/?${params.toString()}`;
+    setUrl(u);
+    QRCode.toString(u, { type: "svg", margin: 1, errorCorrectionLevel: "M" }).then(setSvg);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [slug, phase, onClose]);
+  const copy = async () => {
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  const download = async () => {
+    const dataUrl = await QRCode.toDataURL(url, { width: 1200, margin: 2 });
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `qr-${slug}.png`;
+    a.click();
+  };
   return (
-    <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {clusters.map((c) => (
-        <div key={c.title} className="rounded-3xl border-2 border-border bg-card p-6">
-          <div className="flex items-baseline justify-between gap-4">
-            <h3 className="text-2xl font-semibold">{c.title}</h3>
-            <span className="font-display text-3xl font-bold">{total ? Math.round((c.count / total) * 100) : 0}%</span>
-          </div>
-          <p className="text-lg text-muted-foreground">{c.count} отв.</p>
-          <ul className="mt-4 space-y-2 text-lg">{c.examples.map((e) => <li key={e}>— {e}</li>)}</ul>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 p-6" onClick={onClose}>
+      <div className="relative flex max-h-full w-full max-w-3xl flex-col items-center overflow-auto rounded-[2rem] bg-card p-10 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} aria-label="Закрыть" className="absolute right-5 top-5 rounded-full p-2 hover:bg-secondary"><X className="h-7 w-7" /></button>
+        <h2 className="text-center text-4xl font-semibold">Наведите камеру телефона на QR-код</h2>
+        <div className="mt-8 aspect-square w-full max-w-[min(32rem,60vh)] rounded-3xl bg-background p-4 [&_svg]:h-full [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
+        <p className="mt-6 break-all text-center font-mono text-xl">{url}</p>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <button onClick={copy} className="flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-lg font-semibold text-primary-foreground hover:opacity-90">
+            <Copy className="h-5 w-5" /> {copied ? "Скопировано" : "Скопировать ссылку"}
+          </button>
+          <button onClick={download} className="flex items-center gap-2 rounded-full border-2 border-border px-6 py-3 text-lg font-semibold hover:bg-secondary">
+            <Download className="h-5 w-5" /> Скачать QR
+          </button>
         </div>
-      ))}
+      </div>
     </div>
   );
 }

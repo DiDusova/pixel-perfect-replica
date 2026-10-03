@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,7 @@ export const Route = createFileRoute("/")({
 
 function Survey() {
   const { s = "demo", phase = "before" } = Route.useSearch();
+  const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [q1, setQ1] = useState<string | null>(null);
   const [interests, setInterests] = useState<string[]>([]);
@@ -53,12 +54,17 @@ function Survey() {
     if (!sessionId || !q1) return;
     setSending(true);
     setError(null);
-    const { error } = await supabase.from("survey_responses").insert({
-      session_id: sessionId, phase, q1, interests, task: task.trim() || null,
-    });
-    setSending(false);
-    if (error) setError("Не получилось отправить. Попробуйте ещё раз.");
-    else setStep(4);
+    const { data, error } = await supabase
+      .from("responses")
+      .insert({ session_id: sessionId, phase, current_ai_usage: q1, learning_interests: interests, work_tasks: task.trim() || null })
+      .select("id")
+      .single();
+    if (error || !data?.id) {
+      setSending(false);
+      setError("Не получилось отправить. Попробуйте ещё раз.");
+      return;
+    }
+    navigate({ to: "/result/$id", params: { id: data.id } });
   };
 
   if (missing) {
@@ -158,54 +164,7 @@ function Survey() {
         </div>
       )}
 
-      {step === 4 && q1 && <PersonalDashboard q1={q1} interests={interests} task={task.trim()} />}
     </Shell>
-  );
-}
-
-function PersonalDashboard({ q1, interests, task }: { q1: string; interests: string[]; task: string }) {
-  const usage = Q1_OPTIONS.find((o) => o.id === q1);
-  return (
-    <div className="animate-rise">
-      <span className="inline-flex items-center gap-2 rounded-full bg-highlight px-3 py-1 text-sm font-semibold">
-        <Check className="h-4 w-4" strokeWidth={3} /> Ответ принят
-      </span>
-      <h1 className="mt-5 text-3xl font-semibold sm:text-4xl">Ваша карта интереса</h1>
-      <p className="mt-3 text-lg text-muted-foreground">Вот как сейчас выглядит ваша отправная точка.</p>
-
-      <div className="mt-8 space-y-4">
-        <Block label="Как я сейчас использую ИИ">
-          <p className="text-lg font-semibold">{usage?.label}</p>
-        </Block>
-        <Block label="Что мне хотелось бы освоить">
-          <div className="grid gap-2">
-            {INTERESTS.filter((i) => interests.includes(i.id)).map(({ id, title, Icon }) => (
-              <div key={id} className="flex items-center gap-3 rounded-xl bg-secondary p-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Icon className="h-4 w-4" strokeWidth={1.75} />
-                </span>
-                <span className="font-semibold leading-snug">{title}</span>
-              </div>
-            ))}
-          </div>
-        </Block>
-        <Block label="Что мне хотелось бы упростить">
-          {task ? <p className="whitespace-pre-line text-base leading-relaxed">{task}</p> : <p className="text-muted-foreground">Пока без ответа</p>}
-        </Block>
-      </div>
-
-      <p className="mt-10 text-center text-lg font-semibold">А теперь посмотрим, как выглядит общая картина группы.</p>
-      <p className="mt-3 text-center text-sm text-muted-foreground">Кстати, этот опрос тоже создан с помощью ИИ.</p>
-    </div>
-  );
-}
-
-function Block({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-3xl border-2 border-border bg-card p-5">
-      <h2 className="mb-3 font-sans text-sm font-bold uppercase tracking-wide text-muted-foreground">{label}</h2>
-      {children}
-    </section>
   );
 }
 

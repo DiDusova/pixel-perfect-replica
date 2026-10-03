@@ -37,8 +37,8 @@ function Dashboard() {
       setTitle(sess.title);
       const load = async () => {
         const { data } = await supabase
-          .from("survey_responses")
-          .select("id,q1,interests,task")
+          .from("responses")
+          .select("id,q1:current_ai_usage,interests:learning_interests,task:work_tasks")
           .eq("session_id", sess.id)
           .eq("phase", phase)
           .order("created_at", { ascending: false });

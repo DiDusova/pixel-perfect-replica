@@ -8,7 +8,7 @@ import { INTERESTS, Q1_OPTIONS, type Phase } from "@/lib/survey";
 import { clusterTasks, type Cluster } from "@/lib/clusters.functions";
 
 type Search = { s?: string | undefined; phase?: Phase | undefined };
-type Row = { id: string; q1: string; interests: string[]; task: string | null };
+type Row = { id: string; session_id: string; created_at: string; q1: string; interests: string[]; task: string | null };
 
 export const Route = createFileRoute("/dashboard")({
   validateSearch: (s: Record<string, unknown>): Search => ({
@@ -42,7 +42,7 @@ function Dashboard() {
       const load = async () => {
         const { data } = await supabase
           .from("responses")
-          .select("id,q1:current_ai_usage,interests:learning_interests,task:work_tasks")
+          .select("id,session_id,created_at,q1:current_ai_usage,interests:learning_interests,task:work_tasks")
           .eq("session_id", sess.id)
           .eq("phase", phase)
           .order("created_at", { ascending: false });

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Copy, Download, Maximize2, Minimize2, QrCode, X } from "lucide-react";
+import { Copy, Download, FileDown, Link2, Maximize2, Minimize2, QrCode, X } from "lucide-react";
 import QRCode from "qrcode";
 import { supabase } from "@/integrations/supabase/client";
 import { INTERESTS, Q1_OPTIONS, type Phase } from "@/lib/survey";
@@ -89,6 +89,31 @@ function Dashboard() {
   }, [tasksKey]);
 
   const [qrOpen, setQrOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const participantUrl = () => {
+    const params = new URLSearchParams({ s });
+    if (phase === "after") params.set("phase", "after");
+    return `${window.location.origin}/?${params.toString()}`;
+  };
+  const copyLink = async () => {
+    await navigator.clipboard.writeText(participantUrl());
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
+  const downloadCsv = () => {
+    const esc = (v: string) => (/[",\n;]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+    const header = ["response_id", "session_id", "session_slug", "phase", "created_at", "current_ai_usage", "learning_interests", "work_tasks"];
+    const lines = rows.map((r) =>
+      [r.id, r.session_id, s, phase, r.created_at, r.q1, (r.interests ?? []).join(";"), r.task ?? ""].map(esc).join(",")
+    );
+    const csv = "\uFEFF" + [header.join(","), ...lines].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `ai-map-${s}-${phase}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
   const [present, setPresent] = useState(false);
   useEffect(() => {
     const onFs = () => { if (!document.fullscreenElement) setPresent(false); };

@@ -96,7 +96,7 @@ function localCluster(tasks: string[]): Cluster[] {
 
     const phrases: string[] = [];
     for (const p of free) {
-      for (const phrase of participantPhrases[p]) {
+      for (const phrase of participantPhrases[p] ?? []) {
         if (tokenize(phrase).includes(kw) && phrases.length < 3) {
           phrases.push(phrase.split(/\s+/).slice(0, 8).join(" ").slice(0, 80));
         }

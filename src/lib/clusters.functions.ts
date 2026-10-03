@@ -118,7 +118,7 @@ function localCluster(tasks: string[]): Cluster[] {
       count: rest.length,
       phrases: rest
         .slice(0, 3)
-        .map((i) => tasks[i].split(/\s+/).slice(0, 8).join(" ").slice(0, 80)),
+        .map((i) => (tasks[i] ?? "").split(/\s+/).slice(0, 8).join(" ").slice(0, 80)),
     });
   }
 

@@ -1,5 +1,8 @@
 import { AppWindow, Bot, Files, Lightbulb, Repeat, Rocket, Sparkles, type LucideIcon } from "lucide-react";
 
+export const SURVEY_VERSION = 2;
+
+/** Legacy v1 question — kept only so old data stays readable. */
 export const Q1_OPTIONS = [
   { id: "none", label: "Практически не использую", hint: undefined },
   { id: "chat", label: "Иногда общаюсь с ИИ", hint: "Вопросы, тексты, идеи" },
@@ -8,14 +11,30 @@ export const Q1_OPTIONS = [
   { id: "agents", label: "Уже пробовал(а) приложения, автоматизации или агентов", hint: undefined },
 ] as const;
 
-export const INTERESTS: { id: string; title: string; Icon: LucideIcon }[] = [
-  { id: "apps", title: "Создавать собственные приложения и цифровые инструменты", Icon: AppWindow },
-  { id: "delegate", title: "Поручать ИИ большие задачи целиком", Icon: Rocket },
-  { id: "files", title: "Работать с файлами и рабочими материалами", Icon: Files },
-  { id: "automate", title: "Автоматизировать повторяющиеся процессы", Icon: Repeat },
-  { id: "assistants", title: "Создавать собственных ИИ-ассистентов", Icon: Bot },
-  { id: "analysis", title: "Использовать ИИ для анализа, идей и принятия решений", Icon: Lightbulb },
-  { id: "unsure", title: "Пока не знаю — хочу сначала увидеть возможности", Icon: Sparkles },
+export const LEVELS = [
+  { id: "level_1_unknown", title: "ИИ — неизвестный зверь", short: "Неизвестный зверь", desc: "Слышал, но не использовал. Опасаюсь, либо не вижу смысла." },
+  { id: "level_2_search", title: "ИИ — забавный поисковик", short: "Поисковик", desc: "Пробую вводить простые запросы, тестирую возможности." },
+  { id: "level_3_improver", title: "ИИ — улучшайзер", short: "Улучшайзер", desc: "Использую для редактуры, пересказа, генерации на базе своего материала." },
+  { id: "level_4_assistant", title: "ИИ — интеллектуальный ассистент", short: "Ассистент", desc: "Делегирую задачи, которые умею делать сам. Получаю результат быстрее/качественнее." },
+  { id: "level_5_thinking_partner", title: "ИИ — партнёр в мышлении", short: "Партнёр в мышлении", desc: "Использую ИИ для размышления в незнакомой теме. Веду диалог, задаю рамку, соразмышляю." },
+] as const;
+
+export const ATTITUDES = [
+  { id: "attitude_1_no_value", title: "Это просто бесполезная лишняя работа", short: "Не вижу смысла", emoji: "😒", desc: "Мне добавили ещё один инструмент, и теперь нужно разбираться. Особого смысла не вижу, пользы пока не ощущаю. Считаю, что это отвлекает от настоящей работы." },
+  { id: "attitude_2_anxious", title: "Он пугает", short: "Пугает", emoji: "😟", desc: "Меня напрягает, что он может заменить людей. Или сделать мои знания бесполезными. Отношение настороженное, с тревогой." },
+  { id: "attitude_3_trying", title: "Сказали — я пробую", short: "Пробую", emoji: "🙂", desc: "Немного потыкал. Написал пару запросов. Иногда что-то полезное выдаёт. Но пока пользуюсь только из-за того, что руководитель просит." },
+  { id: "attitude_4_respect", title: "Начинаю уважать", short: "Начинаю уважать", emoji: "🤝", desc: "Уже вижу, что это серьёзно. Понимаю, где он реально помогает, а где — переоценивают. Возникает доверие и желание понять глубже." },
+  { id: "attitude_5_love", title: "Обожаю", short: "Обожаю", emoji: "😍", desc: "Я ощущаю вдохновение в совместной работе с ИИ. Он помогает думать, ускоряет работу, даёт новые перспективы. У меня к нему особое чувство..." },
+] as const;
+
+export const INTERESTS: { id: string; title: string; short: string; Icon: LucideIcon }[] = [
+  { id: "apps", title: "Создавать собственные приложения и цифровые инструменты", short: "Приложения", Icon: AppWindow },
+  { id: "delegate", title: "Поручать ИИ большие задачи целиком", short: "Большие задачи", Icon: Rocket },
+  { id: "files", title: "Работать с файлами и рабочими материалами", short: "Файлы", Icon: Files },
+  { id: "automate", title: "Автоматизировать повторяющиеся процессы", short: "Автоматизация", Icon: Repeat },
+  { id: "assistants", title: "Создавать собственных ИИ-ассистентов", short: "ИИ-ассистенты", Icon: Bot },
+  { id: "analysis", title: "Использовать ИИ для анализа, идей и принятия решений", short: "Анализ и мышление", Icon: Lightbulb },
+  { id: "unsure", title: "Пока не знаю — хочу сначала увидеть возможности", short: "Пока не знаю", Icon: Sparkles },
 ];
 
 export const TASK_EXAMPLES = [
@@ -25,10 +44,27 @@ export const TASK_EXAMPLES = [
   "Разбирать большие документы и находить в них нужную информацию",
 ];
 
-/**
- * Shape for future AI clustering of free-text tasks.
- * Clusters are generated per group from real answers — no fixed categories.
- */
-export type TaskCluster = { title: string; count: number; examples: string[] };
+const INTEREST_PHRASE: Record<string, string> = {
+  apps: "создание собственного цифрового инструмента",
+  automate: "автоматизация повторяющегося процесса",
+  files: "работа ИИ с файлами и рабочими материалами",
+  assistants: "создание своего ИИ-ассистента",
+  delegate: "передача ИИ более целостных задач",
+  analysis: "совместный анализ и мышление с ИИ",
+};
+
+/** Rule-based, no invented data: only level + chosen interests. */
+export function nextStep(level: string | null, interests: string[]): string {
+  const idx = LEVELS.findIndex((l) => l.id === level) + 1;
+  const picked = interests.filter((i) => INTEREST_PHRASE[i]).slice(0, 2).map((i) => INTEREST_PHRASE[i]);
+  const tail = picked.length ? ` Особенно — ${picked.join(" и ")}.` : "";
+  if (idx <= 2)
+    return `Судя по вашим ответам, вам может быть интересно начать с одного простого рабочего сценария и научиться устойчиво получать полезный результат в диалоге с ИИ.${tail}`;
+  if (idx === 3)
+    return `Судя по вашим ответам, вам может быть интересно перейти от улучшения готового материала к делегированию целых знакомых задач и работе с файлами.${tail}`;
+  if (idx === 4)
+    return `Судя по вашим ответам, вам может быть интересно перейти от отдельных поручений к более сложным цепочкам задач.${tail || " Например, к автоматизации, созданию инструментов или ассистентов."}`;
+  return `Судя по вашим ответам, вам может быть интересно исследовать более сложные агентные сценарии и новые способы совместного мышления.${tail}`;
+}
 
 export type Phase = "before" | "after";

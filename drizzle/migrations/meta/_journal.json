@@ -15,6 +15,13 @@
       "when": 1791033748171,
       "tag": "0001_interests_multi",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791034734606,
+      "tag": "0002_responses_view",
+      "breakpoints": true
     }
   ]
 }

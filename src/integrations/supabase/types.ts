@@ -81,7 +81,44 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      responses: {
+        Row: {
+          created_at: string | null
+          current_ai_usage: string | null
+          id: string | null
+          learning_interests: string[] | null
+          phase: string | null
+          session_id: string | null
+          work_tasks: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_ai_usage?: string | null
+          id?: string | null
+          learning_interests?: string[] | null
+          phase?: string | null
+          session_id?: string | null
+          work_tasks?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_ai_usage?: string | null
+          id?: string | null
+          learning_interests?: string[] | null
+          phase?: string | null
+          session_id?: string | null
+          work_tasks?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_responses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "survey_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       [_ in never]: never

@@ -104,7 +104,7 @@ function localCluster(tasks: string[]): Cluster[] {
     }
 
     clusters.push({
-      name: name.charAt(0).toUpperCase() + name.slice(1),
+      name: (name.charAt(0).toUpperCase() + name.slice(1)).slice(0, 60),
       count: free.length,
       phrases,
     });

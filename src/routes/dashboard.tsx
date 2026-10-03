@@ -145,9 +145,17 @@ function Dashboard() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {!present && (
-            <button onClick={() => setQrOpen(true)} className="flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-lg font-semibold text-primary-foreground hover:opacity-90">
-              <QrCode className="h-5 w-5" /> Показать QR-код
-            </button>
+            <>
+              <button onClick={() => setQrOpen(true)} className="flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-lg font-semibold text-primary-foreground hover:opacity-90">
+                <QrCode className="h-5 w-5" /> Показать QR-код
+              </button>
+              <button onClick={copyLink} className="flex items-center gap-2 rounded-full border-2 border-border px-5 py-3 text-lg font-semibold hover:bg-secondary">
+                <Link2 className="h-5 w-5" /> {linkCopied ? "Скопировано" : "Скопировать ссылку участникам"}
+              </button>
+              <button onClick={downloadCsv} className="flex items-center gap-2 rounded-full border-2 border-border px-5 py-3 text-lg font-semibold hover:bg-secondary">
+                <FileDown className="h-5 w-5" /> Скачать ответы CSV
+              </button>
+            </>
           )}
           <button
             onClick={togglePresent}

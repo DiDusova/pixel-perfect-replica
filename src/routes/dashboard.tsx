@@ -203,7 +203,7 @@ function BubbleMap({ clusters, loading, error, hasTasks }: { clusters: Cluster[]
   const rest = clusters.slice(8);
   const max = Math.max(1, ...top.map((c) => c.count));
   const min = Math.min(...top.map((c) => c.count));
-  const size = (n: number) => (max === min ? 15 : 11 + ((n - min) / (max - min)) * 9); // rem
+  const size = (n: number) => (max === min ? 16 : 14 + ((n - min) / (max - min)) * 8); // rem
   return (
     <div className="mt-8">
       {(loading || error) && <p className="mb-4 text-base text-muted-foreground">{error ?? "Обновляем карту…"}</p>}

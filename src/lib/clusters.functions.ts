@@ -64,7 +64,7 @@ function localCluster(tasks: string[]): Cluster[] {
   const entries = [...wordParticipants.entries()].sort(
     (a, b) => b[1].size - a[1].size,
   );
-  const minCount = entries.length > 0 && entries[0][1].size > 1 ? 2 : 1;
+  const minCount = (entries[0]?.[1].size ?? 0) > 1 ? 2 : 1;
   const keywords = entries
     .filter(([, set]) => set.size >= minCount)
     .slice(0, 10)
@@ -82,7 +82,7 @@ function localCluster(tasks: string[]): Cluster[] {
     // Название кластера: самая частая короткая фраза, содержащая ключевое слово.
     const phraseVotes = new Map<string, number>();
     for (const p of free) {
-      for (const phrase of participantPhrases[p]) {
+      for (const phrase of participantPhrases[p] ?? []) {
         if (tokenize(phrase).includes(kw)) {
           const short = phrase.split(/\s+/).slice(0, 4).join(" ");
           phraseVotes.set(short, (phraseVotes.get(short) ?? 0) + 1);

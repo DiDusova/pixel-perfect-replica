@@ -159,6 +159,7 @@ export const clusterTasks = createServerFn({ method: "POST" })
     try {
     res = await fetch(apiUrl, {
       method: "POST",
+      signal: AbortSignal.timeout(20000),
       headers: { Authorization: apiAuth, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: apiModel,

@@ -167,7 +167,7 @@ export const clusterTasks = createServerFn({ method: "POST" })
           {
             role: "system",
             content:
-              "Ты аналитик. Тебе дают пронумерованные ответы участников о рабочих задачах, которые они хотят упростить с помощью ИИ. Один ответ часто содержит несколько РАЗНЫХ задач — сначала разбей каждый ответ на отдельные задачи. Каждая отдельная по смыслу задача должна попасть в свой кластер, даже если её назвал только один участник; не прячь разные задачи одного участника внутри одного кластера как примеры. Один участник может входить в несколько кластеров. Объединяй в один кластер только действительно похожие по смыслу задачи (у разных участников). Названия кластеров — короткие и понятные, на русском (2–4 слова). Для каждого кластера укажи номера участников и 1–3 короткие фразы-примера именно этой задачи (дословно или почти, до 6 слов). Не выдумывай темы, которых нет в ответах.",
+              "Ты аналитик. Тебе дают пронумерованные ответы участников о рабочих задачах, которые они хотят упростить с помощью ИИ.\n\nШаг 1. Разбей каждый ответ на отдельные атомарные задачи (одна задача = одно действие/результат). Например «делать шортсы для тик тока и презентации» → две задачи: «делать шортсы для тик тока» и «делать презентации».\n\nШаг 2. Каждой атомарной задаче присвой ОДНУ категорию по типу результата, который человек получает. Категория определяется форматом результата, а не каналом: шортсы, рилсы, ролики, TikTok, YouTube → «Создание видео»; презентации, слайды → «Создание презентаций»; баннеры, картинки, дизайн → «Создание графики»; посты и тексты для соцсетей → «Тексты и посты»; отчёты, таблицы, анализ → «Анализ данных» и т.п. Используй одно и то же название для одинаковых по смыслу задач разных участников. Названия категорий — 2–3 слова на русском. Не выдумывай задач, которых нет в ответах.\n\nВерни список всех атомарных задач: номер участника, короткая фраза задачи (почти дословно, до 6 слов) и категория.",
           },
           { role: "user", content: numbered },
         ],
@@ -175,29 +175,29 @@ export const clusterTasks = createServerFn({ method: "POST" })
           {
             type: "function",
             function: {
-              name: "report_clusters",
+              name: "report_tasks",
               parameters: {
                 type: "object",
                 properties: {
-                  clusters: {
+                  tasks: {
                     type: "array",
                     items: {
                       type: "object",
                       properties: {
-                        name: { type: "string" },
-                        participants: { type: "array", items: { type: "integer" } },
-                        phrases: { type: "array", items: { type: "string" } },
+                        participant: { type: "integer" },
+                        phrase: { type: "string" },
+                        category: { type: "string" },
                       },
-                      required: ["name", "participants", "phrases"],
+                      required: ["participant", "phrase", "category"],
                     },
                   },
                 },
-                required: ["clusters"],
+                required: ["tasks"],
               },
             },
           },
         ],
-        tool_choice: { type: "function", function: { name: "report_clusters" } },
+        tool_choice: { type: "function", function: { name: "report_tasks" } },
       }),
     });
     } catch {
@@ -206,26 +206,36 @@ export const clusterTasks = createServerFn({ method: "POST" })
     if (!res.ok) {
       const body = await res.text();
       console.error(`AI clustering failed [${res.status}]: ${body}`);
-            return { clusters: localCluster(tasks) };
+      return { clusters: localCluster(tasks) };
     }
-    const json = (await res.json()) as {
-      choices?: { message?: { tool_calls?: { function?: { arguments?: string } }[] } }[];
-    };
-    const args = json.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    if (!args) return { clusters: localCluster(tasks) };
-    let parsed: { clusters?: { name: string; participants: number[]; phrases: string[] }[] };
+    let parsed: { tasks?: { participant: number; phrase: string; category: string }[] };
     try {
+      const json = (await res.json()) as {
+        choices?: { message?: { tool_calls?: { function?: { arguments?: string } }[] } }[];
+      };
+      const args = json.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+      if (!args) return { clusters: localCluster(tasks) };
       parsed = JSON.parse(args);
     } catch {
       return { clusters: localCluster(tasks) };
     }
-    const clusters = (parsed.clusters ?? [])
-      .map((c) => ({
-        name: String(c.name).slice(0, 60),
-        count: new Set((c.participants ?? []).filter((i) => i >= 0 && i < tasks.length)).size,
-        phrases: (c.phrases ?? []).slice(0, 3).map((p) => String(p).slice(0, 80)),
-      }))
-      .filter((c) => c.count > 0)
+    // Группируем в коде: примеры кластера — только задачи этой категории.
+    const groups = new Map<string, { name: string; people: Set<number>; phrases: string[] }>();
+    for (const t of parsed.tasks ?? []) {
+      const p = Number(t.participant);
+      if (!Number.isInteger(p) || p < 0 || p >= tasks.length) continue;
+      const name = String(t.category ?? "").trim().slice(0, 60);
+      if (!name) continue;
+      const key = name.toLowerCase();
+      const g = groups.get(key) ?? { name, people: new Set<number>(), phrases: [] };
+      g.people.add(p);
+      const phrase = String(t.phrase ?? "").trim().slice(0, 80);
+      if (phrase && g.phrases.length < 3 && !g.phrases.includes(phrase)) g.phrases.push(phrase);
+      groups.set(key, g);
+    }
+    const clusters = [...groups.values()]
+      .map((g) => ({ name: g.name, count: g.people.size, phrases: g.phrases }))
       .sort((a, b) => b.count - a.count);
+    if (clusters.length === 0) return { clusters: localCluster(tasks) };
     return { clusters };
   });

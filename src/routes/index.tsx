@@ -39,11 +39,19 @@ function Survey() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [missing, setMissing] = useState(false);
 
+  const loadSession = async (): Promise<string | null> => {
+    const { data, error } = await supabase.from("survey_sessions").select("id").eq("slug", s).maybeSingle();
+    if (data) {
+      setSessionId(data.id);
+      return data.id;
+    }
+    if (!error) setMissing(true);
+    return null;
+  };
+
   useEffect(() => {
-    supabase.from("survey_sessions").select("id").eq("slug", s).maybeSingle().then(({ data }) => {
-      if (data) setSessionId(data.id);
-      else setMissing(true);
-    });
+    loadSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s]);
 
   const toggle = (id: string) =>
@@ -54,28 +62,32 @@ function Survey() {
     });
 
   const submit = async () => {
-    if (!sessionId || !level || !attitude) return;
+    if (sending || !level || !attitude) return;
     setSending(true);
     setError(null);
-    const { data, error } = await supabase
-      .from("responses")
-      .insert({
-        session_id: sessionId,
-        phase,
-        survey_version: SURVEY_VERSION, // always explicit; DEFAULT 1 exists only for legacy rows
-        interaction_level: level,
-        ai_attitude: attitude,
-        learning_interests: interests,
-        work_tasks: task.trim() || null,
-      })
-      .select("id")
-      .single();
-    if (error || !data?.id) {
+    try {
+      const sid = sessionId ?? (await loadSession());
+      if (!sid) throw new Error("no session");
+      const { data, error } = await supabase
+        .from("responses")
+        .insert({
+          session_id: sid,
+          phase,
+          survey_version: SURVEY_VERSION, // always explicit; DEFAULT 1 exists only for legacy rows
+          interaction_level: level,
+          ai_attitude: attitude,
+          learning_interests: interests,
+          work_tasks: task.trim() || null,
+        })
+        .select("id")
+        .abortSignal(AbortSignal.timeout(15000))
+        .single();
+      if (error || !data?.id) throw error ?? new Error("no id");
+      navigate({ to: "/result/$id", params: { id: data.id } });
+    } catch {
       setSending(false);
-      setError("Не получилось отправить. Попробуйте ещё раз.");
-      return;
+      setError("Не получилось отправить. Проверьте интернет и нажмите ещё раз.");
     }
-    navigate({ to: "/result/$id", params: { id: data.id } });
   };
 
   if (missing) {
@@ -192,7 +204,7 @@ function Survey() {
             className="mt-5 w-full rounded-2xl border-2 border-border bg-card p-4 text-base outline-none focus:border-primary"
           />
           {error && <p className="mt-4 text-destructive">{error}</p>}
-          <PrimaryButton className="mt-6" disabled={sending || !sessionId} onClick={submit}>
+          <PrimaryButton className="mt-6" disabled={sending} onClick={submit}>
             {sending ? "Отправляем…" : "Отправить"}
           </PrimaryButton>
         </div>

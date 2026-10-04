@@ -134,20 +134,34 @@ export const clusterTasks = createServerFn({ method: "POST" })
     if (tasks.length === 0) return { clusters: [] };
 
     // Режим 1 (Lovable): Lovable AI Gateway с управляемым ключом.
+    // Режим 2 (self-hosted + AI_API_KEY): GPTunneL — OpenAI-compatible API,
+    // ключ передаётся в Authorization без приставки Bearer.
+    // Режим 3 (self-hosted без ключа): локальная группировка без внешнего ИИ.
     const lovableKey = process.env["LOVABLE_API_KEY"];
-    if (!lovableKey) {
-      // Режим 2 (self-hosted): локальная группировка по частотным словам, без внешнего ИИ.
+    const externalKey = process.env["AI_API_KEY"];
+    let apiUrl: string;
+    let apiAuth: string;
+    let apiModel: string;
+    if (lovableKey) {
+      apiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
+      apiAuth = `Bearer ${lovableKey}`;
+      apiModel = "google/gemini-3-flash-preview";
+    } else if (externalKey) {
+      apiUrl = "https://gptunnel.ru/v1/chat/completions";
+      apiAuth = externalKey; // GPTunneL принимает ключ без Bearer
+      apiModel = "gpt-4o-mini";
+    } else {
       return { clusters: localCluster(tasks) };
     }
 
     const numbered = tasks.map((t, i) => `[${i}] ${t}`).join("\n");
     let res: Response;
     try {
-    res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    res = await fetch(apiUrl, {
       method: "POST",
-      headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+      headers: { Authorization: apiAuth, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: apiModel,
         messages: [
           {
             role: "system",

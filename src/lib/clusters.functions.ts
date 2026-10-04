@@ -84,7 +84,7 @@ function localCluster(tasks: string[]): Cluster[] {
     for (const p of free) {
       for (const phrase of participantPhrases[p] ?? []) {
         if (tokenize(phrase).includes(kw)) {
-          const short = phrase.split(/\s+/).slice(0, 4).join(" ");
+          const short = phrase.split(/\s+/).slice(0, 3).join(" ").replace(/[,:;—-]+$/, "");
           phraseVotes.set(short, (phraseVotes.get(short) ?? 0) + 1);
         }
       }
@@ -141,7 +141,9 @@ export const clusterTasks = createServerFn({ method: "POST" })
     }
 
     const numbered = tasks.map((t, i) => `[${i}] ${t}`).join("\n");
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    let res: Response;
+    try {
+    res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -183,23 +185,24 @@ export const clusterTasks = createServerFn({ method: "POST" })
         tool_choice: { type: "function", function: { name: "report_clusters" } },
       }),
     });
+    } catch {
+      return { clusters: localCluster(tasks) };
+    }
     if (!res.ok) {
       const body = await res.text();
       console.error(`AI clustering failed [${res.status}]: ${body}`);
-      if (res.status === 429) return { clusters: [], error: "Слишком много запросов к ИИ, попробуем позже" };
-      if (res.status === 402) return { clusters: [], error: "Закончились кредиты ИИ" };
-      return { clusters: [], error: "Не удалось сгруппировать задачи" };
+            return { clusters: localCluster(tasks) };
     }
     const json = (await res.json()) as {
       choices?: { message?: { tool_calls?: { function?: { arguments?: string } }[] } }[];
     };
     const args = json.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    if (!args) return { clusters: [], error: "Пустой ответ ИИ" };
+    if (!args) return { clusters: localCluster(tasks) };
     let parsed: { clusters?: { name: string; participants: number[]; phrases: string[] }[] };
     try {
       parsed = JSON.parse(args);
     } catch {
-      return { clusters: [], error: "Не удалось прочитать ответ ИИ" };
+      return { clusters: localCluster(tasks) };
     }
     const clusters = (parsed.clusters ?? [])
       .map((c) => ({

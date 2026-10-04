@@ -274,7 +274,7 @@ function BubbleMap({ clusters, loading, error, hasTasks }: { clusters: Cluster[]
   const size = (n: number) => (max === min ? 16 : 14 + ((n - min) / (max - min)) * 8); // rem
   return (
     <div className="mt-8">
-      {(loading || error) && <p className="mb-4 text-base text-muted-foreground">{error ?? "Обновляем карту…"}</p>}
+      {loading && <p className="mb-4 text-base text-muted-foreground">Обновляем карту…</p>}
       <div className="flex flex-wrap items-center justify-center gap-6">
         {top.map((c, i) => {
           const d = size(c.count);
@@ -284,12 +284,12 @@ function BubbleMap({ clusters, loading, error, hasTasks }: { clusters: Cluster[]
               key={c.name}
               onClick={() => setOpen(isOpen ? null : c.name)}
               style={{ width: `${d}rem`, height: `${d}rem`, animationDelay: `${i * 70}ms` }}
-              className={`animate-pop flex shrink-0 flex-col items-center justify-center rounded-full border border-border/40 p-6 text-center shadow-lg transition-transform hover:scale-105 ${BUBBLE_TONES[i % BUBBLE_TONES.length]}`}
+              className={`animate-pop flex shrink-0 flex-col items-center justify-center overflow-hidden rounded-full border border-border/40 p-8 text-center shadow-lg transition-transform hover:scale-105 ${BUBBLE_TONES[i % BUBBLE_TONES.length]}`}
             >
-              <span className="text-xl font-bold leading-tight">{c.name}</span>
+              <span className={`line-clamp-3 break-words font-bold leading-tight ${c.name.length > 24 ? "text-base" : "text-xl"}`}>{c.name}</span>
               <span className="mt-1 font-display text-3xl font-bold tabular-nums">{c.count}</span>
               <span className="text-sm font-semibold opacity-80">{people(c.count)}</span>
-              <span className="mt-2 line-clamp-3 text-sm leading-snug opacity-80">
+              <span className="mt-2 line-clamp-2 text-xs leading-snug opacity-80">
                 например: {(isOpen ? c.phrases : c.phrases.slice(0, 2)).map((p) => `«${p}»`).join(", ")}
               </span>
             </button>

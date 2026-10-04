@@ -80,8 +80,8 @@ function Survey() {
           work_tasks: task.trim() || null,
         })
         .select("id")
-        .single()
-        .abortSignal(AbortSignal.timeout(15000));
+        .abortSignal(AbortSignal.timeout(15000))
+        .single();
       if (error || !data?.id) throw error ?? new Error("no id");
       navigate({ to: "/result/$id", params: { id: data.id } });
     } catch {
